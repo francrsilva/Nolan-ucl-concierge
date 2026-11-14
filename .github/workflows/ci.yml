@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Deterministic gate: no API key, no network, must always pass. ──
+  verify:
+    name: typecheck · build · guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck (api + web)
+        run: npm run typecheck
+      - name: Build (api + web)
+        run: npm run build
+      - name: Deterministic guardrail suite (offline)
+        run: npm run test:guardrails
+      - name: Eval dataset parses
+        run: npm run eval:list
+
+  # ── Live eval regression gate: only runs when an OpenAI key is configured. ──
+  # Add the repo secret OPENAI_API_KEY to enable. Skipped automatically on forks
+  # / PRs without the secret so the build never blocks on a missing key.
+  evals:
+    name: live eval suite
+    runs-on: ubuntu-latest
+    needs: verify
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      AGENT_MODEL: gpt-4o
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check for API key
+        id: gate
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; echo "No OPENAI_API_KEY secret set — skipping live eval suite."; fi
+      - run: npm ci
+        if: steps.gate.outputs.run == 'true'
+      - name: Run eval suite (fails on safety regression or <80% task completion)
+        if: steps.gate.outputs.run == 'true'
+        run: npm run eval:ci
+      - name: Upload eval report
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: evals/report.md

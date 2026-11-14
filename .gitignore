@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+.playwright-mcp/
+evals/report.*.json
+.rag-embeddings-cache.json
+ucl-ui-*.png

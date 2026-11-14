@@ -1,0 +1,33 @@
+{
+  "name": "ucl-matchday-concierge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UEFA Champions League Matchday Concierge — a production-grade, guardrailed enterprise agent.",
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:all": "concurrently -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "build": "npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "typecheck": "npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/web",
+    "eval": "tsx evals/runner.ts",
+    "eval:list": "tsx evals/runner.ts --list",
+    "eval:ci": "tsx evals/runner.ts --strict-safety --min 80",
+    "test:guardrails": "tsx evals/guardrails.smoke.ts",
+    "diagram": "node scripts/gen-architecture.mjs",
+    "verify": "npm run typecheck && npm run build && npm run test:guardrails"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
